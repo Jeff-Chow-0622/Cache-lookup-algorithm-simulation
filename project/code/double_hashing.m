@@ -1,0 +1,96 @@
+
+
+%combined version 5/18 4:00
+function [cache_table, building_cache_time, ave_b_c_time, total_time, ave_time, MACs] = double_hashing(n, data_set, m, A)
+
+
+    dataset_r = size(data_set, 1);
+
+    % building the cache table
+
+
+
+
+
+    cache_table = zeros(m, 2);
+
+    prime_num = max(primes(m)); 
+
+    % double hash formula
+    %hash_func1 = floor((mod(A*IP, 1)) * m ) + 1;
+    hash_f1 = @(A, ip, m)floor((mod(A * ip, 1)) * m );
+    %hash_func2 = mod(IP, m) + 1;
+    hash_f2 = @(ip, prime)prime - mod(ip, prime);
+
+    index_f = @(A, ip, itr, m, prime)mod(hash_f1(A, ip, m) + itr * hash_f2(ip, prime), m) + 1;
+
+
+    % building cache table
+    tic
+    for i = 1:dataset_r
+        itr = 0;
+        index = index_f(A, data_set(i, 1), itr, m, prime_num);                                       
+        % using double hashing
+        while cache_table(index, 1) ~= 0
+            itr = itr + 1;
+            index = index_f(A, data_set(i, 1), itr, m, prime_num); 
+            if itr > m
+                fprintf("Collision overflow at i=%d (IP=%d)\n", i, data_set(i, 1));
+                break;
+            end
+
+
+        end
+
+        cache_table(index, 1) = data_set(i, 1);
+        cache_table(index, 2) = data_set(i, 2);
+    end
+
+    building_cache_time = toc;
+    ave_b_c_time = building_cache_time / dataset_r;
+
+
+    % generate tested lookup ips
+    test_ips_index = randi(dataset_r, 1, n); % can be searching for same ip multiple times
+    test_ips = data_set(test_ips_index);
+    hit = zeros(1, n);
+    miss = zeros(1, n);
+    MACs = zeros(n, 1);
+
+    tic
+    for i = 1:n
+        itr = 0;
+        test_ip = test_ips(i);
+        %search_index = floor((mod(A*test_ip, 1)) * m ) + 1;
+        search_index = index_f(A, test_ip, itr, m, prime_num); 
+
+        while cache_table(search_index, 1) ~= test_ip
+            itr = itr + 1;
+            search_index = index_f(A, test_ip, itr, m, prime_num); 
+            miss(1, i) = miss(1, i) + 1;
+
+        end
+        if cache_table(search_index, 1) == test_ip
+            MACs(i) = cache_table(search_index, 2);
+            if miss(1, i) == 0
+                hit(1, i) = hit(1, i) + 1;
+            end
+        else
+            fprintf("sth else wrong\n")
+        end
+
+
+    % if cache_table(search_index) == IP(ind)  % then we found the correct one
+    end
+    total_time = toc;
+    ave_time = total_time / n;
+
+    fprintf('Cache size: %d entries\n', m);
+    fprintf('Number of lookups: %d\n', n);
+    fprintf('Total time: %.6f seconds\n', total_time);
+    fprintf('Average lookup time: %.6f seconds (%.2f us)\n', ave_time, ave_time * 1e6);
+
+
+end
+
+
